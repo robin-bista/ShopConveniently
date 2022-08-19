@@ -1,0 +1,169 @@
+---
+title: "Boost Sales, Today!"
+author: "Robin Bista"
+date: "05/20/2021"
+header-includes:
+   - \usepackage[default]{sourcesanspro}
+   - \usepackage[T1]{fontenc}
+mainfont: SourceSansPro
+output: 
+   prettydoc::html_pretty:
+    theme: hpstr
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+Todays fast-changing retail industry expects retailers to know their customers shopping behavior beforehand. Sales optimization requires accurate prediction of customers shopping habits and fulfillment of the inventories in advance. Negligence to comply impedes customers shopping experience and diminishes the customer base. Today, let us explore the grocery dataset in the R to create an association between the 20 frequently sold items and complementary products bought with those items. We will find and use the correlation to suggest that retailers place such products in adjacent aisles for smooth shopping experiences and sales optimization.
+
+## 1. Apriori Algorithm
+
+Apriori algorithm, as the name suggests, uses prior information of frequent itemset properties to find relations between items. It applies either an iterative approach or level-wise search to find k+1 itemsets from k-frequent itemsets. The algorithm uses the Apriori property to improve the efficiency of level-wise generation of frequent itemsets, by reducing the search spaces. Apriori property states all non-empty subsets of a frequent itemset must be frequent. Let us take an example to further understand the algorithm. 
+
+The Cake dataset below consists of a few imaginary items purchased from a retail store: 
+
+![](/Users/robinbista/Desktop/MATH261/EditedCakeDataset.png) 
+
+### The Association Rules:
+
+The dataset helps us construct a set of rules as follows: 
+
+Rule 1: If Flour is purchased, then Egg is also purchased.
+
+Rule 2:  If Egg is purchased, then Flour is also purchased.
+
+Rule 3: If Flour and Eggs are purchased, then Sugarr is also purchased in 60% of the transactions.
+
+Above rules, explicitly state:
+
+    1. Whenever Flour is purchased, Egg is also purchased or vice versa.
+    2.If Flour and Egg are purchased then the Sugar is also purchased. This is true in 3 out of the 5   transactions.
+
+If {Flour} and {Sugar} both are one-item sets, a new set {Flour, Sugar} can be created with the information . The new set is used to identify the products purchased when both flour and sugar are purchased. Let us look at a suitable Right Hand Side (RHS) and Left Hand Side (LHS) for multiple items of a single transaction to form an association between item sets. Every purchase of  {Sugar} with  { Flour}, is represented as {Sugar} => {Flour}. Here {Sugar} and {Flour} is RHS and LHS respectively. This association can be used to find other k-items and k+1 itemset. Transactions including  {Sugar, Flour} have high chaces of including Baking Soda.
+
+ 
+            
+In this method, the Apriori algorithm uses k-itemsets to search (k+1) itemsets. The first 1-item set iterates to find 2-item sets until (k+1) item set. 
+
+### 1.1 Dataset Handling
+
+Let us analyze the “Groceries” data in R where the retailers store the transaction in a specific dataset called “Transaction”.
+
+```{r,echo=FALSE}
+#install.packages("arulesViz")
+#install.packages("RColorBrewer")
+library(RColorBrewer)
+library(arulesViz)
+library(arules)
+data("Groceries")
+trans <- as(Groceries, "transactions")
+```
+
+### 1.2 Overview
+
+```{r, echo=FALSE}
+str(Groceries)
+```
+The transaction dataset is internally divided into 3 different slots: data, itemInfo, and itemsetInfo. The data class contains multiple headers like dimensions, dimension names, and the number of  products purchased in each transaction.
+
+
+
+```{r,echo=FALSE}
+head(Groceries@itemInfo,n=20)
+```
+The first 20 rows in the “itemInfo” class provides the name ofitems under the column “labels”. The “level1” generalizes the items and “level2” catetorizes it into specific domain, which helps in efficient correlations.
+
+## 2. Implementing Apriori Algorithm 
+```{r, echo=FALSE}
+rules <- apriori(Groceries, parameter = list(supp = 0.001, conf = 0.80))
+```
+The  minimum support parameter (minSup) is set to .001. Minimum confidence (minConf) can take value between 0.75 and 0.85 for varied results. Further explanation about support, lift, and Confidence is given below:
+
+#### Support: 
+Support can be understood as the general probability of a particular event occurring. For example, lets assume an event named ‘Buy’, which represents buying a product. In this case, the support of ‘Buy’ is the  number of transactions including ‘Buy’ divided by total number of transactions in the store.
+
+#### Confidence: 
+The confidence of an event is the conditional probability of the occurrence of any event after one particular event has occurred. In general terms, it is more like chances of A happening given that B has already occurred.
+
+#### Lift: 
+The ratio of confidence to expected confidence is the lift. The probability of all of the items in a rule occurring, divided by the product of the probabilities of the items on the left and right side occurring is lift. The lift value represents the quality of rule to predict associate between items. Higher the lift, stronger the association.
+
+The top 20 rules arranged by lift:
+```{r, echo=FALSE}
+inspect(rules[1:20])
+```
+Top 20 rules produced from Groceries data is given below. First rule states when Liquior and Red Wine is bought, it is likely bottled beer is also bought.
+
+## 3. Interpretations and Analysis
+## 3.1 The Item Frequency Histogram
+Histogram below represents the frequency of an item occurred in the dataset as compared to other items. The relative frequency plot shows “Whole Milk” and “Other Vegetables” are among the tow two most purchased products. 
+```{r, echo=FALSE}
+par("mar")
+par(mar=c(1,1,1,1))
+arules::itemFrequencyPlot(Groceries,
+                          topN=20,
+                          col=brewer.pal(8,'Pastel2'),
+                          main='Relative Item Frequency Plot',
+                          type="relative",
+                          ylab="Item Frequency (Relative)")
+```
+
+The graph above represents people buy milk and vegetable relatively more compared to other items in the store. Now, let us placed relatable items near milk and vegetables to optimize sales. Bread and eggs can be a great complement.
+
+## 3.2 Graphical Representation
+
+The graph below represents support and lifts of multiple items in the inventory and show association among those items. The size of the nodes is based on support levels and the color is based on lift ratios. 
+
+```{r,echo=FALSE}
+plot(rules[1:20],
+     method = "graph",
+     control = list(type = "items"))
+```
+
+It is clear that most of the transactions are around Whole Milk. Liquor and wine also show strong associated. Similarly, tropical fruits and herbs have relations with rolls and buns. A bit off but, its okay! These items should be placed in the same asile.
+
+```{r,echo=FALSE}
+image(trans[1:20,1:20])
+```
+
+Each black box represents a non-zero value which means a correlation between items and the transactions.
+
+## 3.3 Interactive Scatterplot
+
+The interactive plot visualizes association rules and plots a scattered plot. The x-axis and the y-axis represent support and confidence respectively. Let’s move around the scattered plot and see the results.
+
+```{r,echo=FALSE}
+plot(rules, engine = "plotly")
+```
+
+Moving around the plot displays lift, support, and confidence for the set of items. Item set like, {Liquor, Red wine} => {Bottle beer} has a confidence of 0.95 and high lift of 11.2, it is a suitable set of items to place together. 
+
+## 4. Conclusion
+After visualizing above plots, a more detailed and effective strategy can be implemented to place related items together. The Grocery dataset transaction has a strong correlation between “Whole Milk” with “Vegetables” and “Wine” with “Bottled Beer”. Some specific aisles allows customers to have a smooth and pleasant shopping experience with the ease of acces to related items.It acts as a catalyst to boost the store sales simultaneously. 
+ 
+#### Aisles Proposed:
+##### Liquor Aisle – Liquor, Red/Blush Wine, Bottled Beer
+##### Groceries Aisle – Other vegetables, Whole milk, Oil, Yogurt, Rice,  Root Vegetable
+##### Fruit Aisle – Citrus Fruit, Grape, Fruit/Vegetable juice, Tropical fruits
+##### Breakfast Aisle –  Pastry, Curd, Cereals, Sweet Spreads
+
+Now you know the tricks retailers adopt for your convenient shopping experience and to boost their sales! 
+
+Keep shopping, enjoy shopping!! 
+
+
+
+
+
+
+
+
+
+
+
+
+
